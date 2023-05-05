@@ -1,2 +1,3 @@
-# cloud-Azure
-Learning projects for Azure public cloud.
+# Cloud-Azure
+
+Projects to start learning Azure public cloud.

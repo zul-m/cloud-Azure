@@ -17,19 +17,22 @@ namespace AzureFunc
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            TransactionData _TransactionData = new TransactionData();
 
             string id = req.Query["id"];
             string name = req.Query["name"];
             string trid = req.Query["trid"];
             string reid = req.Query["reid"];
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            id = id ?? data?.id;
-            name = name ?? data?.name;
-            trid = trid ?? data?.trid;
-            reid = reid ?? data?.reid;
+            if (!string.IsNullOrEmpty(id))
+            {
+                _TransactionData.id = Int32.Parse(id);
+                _TransactionData.name = name;
+                _TransactionData.trid = trid;
+                _TransactionData.reid = reid;
+            }
+
+            log.LogInformation("C# HTTP trigger function processed a request.", JsonConvert.SerializeObject(_TransactionData));
 
             string responseMessage = string.IsNullOrEmpty(name)
                 ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."

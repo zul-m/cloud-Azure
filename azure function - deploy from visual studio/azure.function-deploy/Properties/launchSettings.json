@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "azure.function_deploy": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7146",
+      "launchBrowser": false
+    }
+  }
+}

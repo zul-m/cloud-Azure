@@ -27,7 +27,7 @@ namespace azure_function___deploy_from_docker_hub_cicd
 
             string responseMessage = string.IsNullOrEmpty(name)
                 ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
+                : $"Hello, {name}. Your CI/CD works. This HTTP triggered function executed successfully.";
 
             return new OkObjectResult(responseMessage);
         }

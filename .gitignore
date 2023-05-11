@@ -1,2 +1,5 @@
 # Changes history.
-*.history
+.history/
+
+# Visual Studio Code cache/options directory.
+.vscode/

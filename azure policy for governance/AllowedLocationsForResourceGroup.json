@@ -1,0 +1,34 @@
+{
+    "mode": "All",
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "in": [
+                        "Microsoft.Resources/subscriptions/resourceGroups"
+                    ]
+                },
+                {
+                    "not": {
+                        "field": "location",
+                        "in": "[parameters('allowedLocations')]"
+                    }
+                }
+            ]
+        },
+        "then": {
+            "effect": "deny"
+        }
+    },
+    "parameters": {
+        "allowedLocations": {
+            "type": "Array",
+            "metadata": {
+                "displayName": "Allowed locations",
+                "description": "Allowed locations for resource groups-demo",
+                "strongType": "location"
+            }
+        }
+    }
+}

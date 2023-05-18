@@ -1,0 +1,26 @@
+{
+    "mode": "All",
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "in": [
+                        "Microsoft.Compute/virtualMachines",
+                        "Microsoft.ClassicCompute/virtualMachines"
+                    ]
+                },
+                {
+                    "not": {
+                        "field": "name",
+                        "match": "vm-?-???-vm###"
+                    }
+            }
+        ]
+    },
+    "then": {
+        "effect": "deny"
+    }
+},
+"parameters": {}
+}

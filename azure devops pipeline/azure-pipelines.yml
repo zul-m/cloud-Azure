@@ -1,0 +1,73 @@
+name: $(BuildDefinitionName)_$(date:yyyyMMdd)$(rev:.r)
+trigger:
+  branches:
+    include:
+    - dev   
+pr: none
+
+pool:
+  name: demo-privateAgentDevOps # Name of a pool.  
+stages :
+
+  - stage: terraform_plan
+    displayName: Plan 
+    jobs:
+      - job: init_plan
+        steps:
+          - checkout: self
+
+          - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: 'latest'
+
+          - task: TerraformCLI@0
+            displayName: 'Initialization'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/'
+              backendType: 'azurerm'
+              backendServiceArm: 'terrafromspn'
+              backendAzureRmResourceGroupName: 'selfhostedagent-loves-terraform-2023'
+              backendAzureRmResourceGroupLocation: 'francecentral'
+              backendAzureRmStorageAccountName: 'stselfhostedagent'
+              backendAzureRmContainerName: 'terraform-states'
+              backendAzureRmKey: devagent.tfstate
+              allowTelemetryCollection: true
+
+          - task: TerraformCLI@0
+            displayName: 'Run terraform validate'
+            inputs:
+                 command: 'validate'
+                 workingDirectory: '$(System.DefaultWorkingDirectory)'
+                 commandOptions: 
+                 allowTelemetryCollection: true 
+                 environmentServiceName: 'terrafromspn'
+                 backendType: azurerm
+          
+          - task: TerraformCLI@0
+            displayName: 'Run Terraform Plan'
+            inputs:
+                  backendType: azurerm
+                  command: 'plan'
+                  commandOptions: '-input=false  -out .tfplan'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/'
+                  environmentServiceName: 'terrafromspn'
+                  publishPlanResults: 'dev-plan'
+
+          - script: |
+                cd $(Build.SourcesDirectory)/
+                terraform show -json .tfplan >> tfplan.json
+                # Format tfplan.json file
+                terraform show -json .tfplan | jq '.' > tfplan.json
+                # show only the changes
+                cat tfplan.json | jq '[.resource_changes[] | {type: .type, name: .change.after.name, actions: .change.actions[]}]' 
+            displayName: Create tfplan.json
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Build Artifacts'
+            inputs:
+                PathtoPublish: './'
+                ArtifactName: 'selfhostedlinux-tfplan'
+                publishLocation: 'Container'
+                StoreAsTar: true

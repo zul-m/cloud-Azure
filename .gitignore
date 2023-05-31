@@ -3,3 +3,6 @@
 
 # Visual Studio Code cache/options directory.
 .vscode/
+
+# Terraform dependency files.
+azure devops pipeline/.terraform*

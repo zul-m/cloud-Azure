@@ -6,3 +6,5 @@
 
 # Terraform dependency files.
 azure devops pipeline/.terraform*
+terraform - create a Linux VM/.terraform*
+terraform - create a Linux VM/terraform*

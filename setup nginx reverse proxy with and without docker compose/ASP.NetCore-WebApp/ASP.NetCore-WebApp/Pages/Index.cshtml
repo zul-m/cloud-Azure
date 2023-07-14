@@ -1,0 +1,13 @@
+﻿@page
+@using hostnameapp.Pages
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+    var hostname = ViewData["host"];
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p><strong>Hostname :</strong><h3><code>@hostname</code></h3></p>
+</div>

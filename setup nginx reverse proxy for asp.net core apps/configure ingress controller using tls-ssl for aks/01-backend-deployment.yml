@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-restapp
+  namespace: ingress 
+  labels:
+    app: backend-restapp
+    tier: backend 
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-restapp
+  template:
+    metadata:
+      labels:
+        app: backend-restapp
+        tier: backend 
+    spec: 
+      containers:
+        - name: backend-restapp
+          image: ben2code/backend:latest
+          ports:
+            - containerPort: 5000        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-backend-service ## VERY VERY IMPORTANT
+  labels:
+    app: backend-restapp
+    tier: backend   
+spec:
+  selector:
+    app: backend-restapp
+  ports:
+    - name: http
+      port: 5000 # ClusterIP Service Port
+      targetPort: 5000 # Container Port
+  type: ClusterIP    

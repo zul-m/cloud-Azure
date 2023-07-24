@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 01-nginx-frontend
+  namespace: ingress 
+  labels:
+    app: 01-nginx-frontend
+    tier: frontend 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 01-nginx-frontend
+  template:
+    metadata:
+      labels:
+        app: 01-nginx-frontend
+        tier: frontend 
+    spec: 
+      containers:
+        - name: 01-nginx-frontend
+          image: ben2code/my_build:v3-release
+          ports:
+            - containerPort: 80        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-nginx-service-01 ## VERY VERY IMPORTANT
+  labels:
+    app: 01-nginx-frontend
+    tier: frontend   
+spec:
+  selector:
+    app: 01-nginx-frontend
+  ports:
+    - name: http
+      port: 80 # ClusterIP Service Port
+      targetPort: 80 # Container Port
+  type: ClusterIP    

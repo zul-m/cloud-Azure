@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-restapp-acr
+  namespace: ingress 
+  labels:
+    app: backend-restapp-acr
+    tier: backend 
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-restapp-acr
+  template:
+    metadata:
+      labels:
+        app: backend-restapp-acr
+        tier: backend 
+    spec: 
+      containers:
+        - name: backend-restapp-acr
+          image: containerregistryachraf.azurecr.io/hello-world:latest
+          ports:
+            - containerPort: 5000        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-backend-serviceacr ## VERY VERY IMPORTANT - NGINX PROXYPASS needs this name
+  labels:
+    app: backend-restapp-acr
+    tier: backend
+spec:
+  selector:
+    app: backend-restapp-acr
+  ports:
+    - name: http
+      port: 5000 # ClusterIP Service Port
+      targetPort: 5000 # Container Port
+  type: ClusterIP

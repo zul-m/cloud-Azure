@@ -14,8 +14,7 @@ resource "random_id" "log_analytics_workspace_name_suffix" {
 
 resource "azurerm_log_analytics_workspace" "insights" {
   location = var.log_analytics_workspace_location
-  # The WorkSpace name has to be unique across the whole of azure;
-  # not just the current subscription/tenant.
+  # The WorkSpace name has to be unique across the whole of azure, not just the current subscription/tenant
   name                = "${var.log_analytics_workspace_name}-${random_id.log_analytics_workspace_name_suffix.dec}"
   resource_group_name = azurerm_resource_group.rg.name
   sku                 = var.log_analytics_workspace_sku
@@ -34,7 +33,7 @@ resource "azurerm_log_analytics_solution" "insights" {
   }
 }
 
-#aks
+# AKS
 resource "azurerm_kubernetes_cluster" "cluster" {
   name = var.cluster_name
   #kubernetes_version  = data.azurerm_kubernetes_service_versions.current.latest_version
@@ -66,4 +65,20 @@ resource "azurerm_kubernetes_cluster" "cluster" {
   }
 
 
+}
+
+# ACR
+resource "azurerm_container_registry" "acr001" {
+  name                = "containerRegistrymumu"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  sku                 = "Standard"
+}
+
+
+resource "azurerm_role_assignment" "roleforaks" {
+  principal_id                     = azurerm_kubernetes_cluster.cluster.kubelet_identity[0].object_id
+  role_definition_name             = "AcrPull"
+  scope                            = azurerm_container_registry.acr001.id
+  skip_service_principal_aad_check = true
 }

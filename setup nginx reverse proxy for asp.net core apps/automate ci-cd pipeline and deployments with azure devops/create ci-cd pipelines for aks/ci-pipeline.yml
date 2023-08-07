@@ -1,0 +1,120 @@
+name: $(BuildDefinitionName)_$(date:yyyyMMdd)$(rev:.r)
+trigger:
+  branches:
+    include:
+    - dev
+    - master
+# Our agent
+pool:
+    name: demo-privateAgentDevOps
+    demands: 
+    - Agent.Name -equals DevopsAg01
+variables:
+    imageRepository: 'mydotnetappdemo'
+    containerRegistry: 'crdvsaksdevfc01.azurecr.io'
+    containerRegistryspn: 'acr-aks-001'
+    dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+    hostnamesManifest: '$(Pipeline.Workspace)/manifests/01-backend-acr-deployment.yml'
+    frontendManifest: '$(Pipeline.Workspace)/manifests/01-nginx-frontend.yml'
+    ingressManifest: '$(Pipeline.Workspace)/manifests/ingress.yml'
+    imagePullSecret: 'context-auth'
+    kubernetesServiceConnection: 'aksspn'
+    hostnameImageRepo: 'mydotnetappdemo'
+    tag: '$(Build.BuildId)'
+stages:
+- stage: Build
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+  displayName: Build and push Docker image to ACR
+  jobs:
+  - job: Build
+    displayName: Restore project
+    steps:  
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore packages'
+      inputs:
+          command: 'restore'
+          projects: '**/*.csproj'
+    - task: Docker@2
+      displayName: 'Build Project'
+      inputs:
+          containerRegistry: $(containerRegistryspn)
+          repository: '$(imageRepository)'
+          command: 'build'
+          Dockerfile: '**/Dockerfile'
+          tags: |
+            $(tag)
+            latest
+    - task: Docker@2
+      displayName: 'Push Docker image'
+      inputs:
+          containerRegistry: $(containerRegistryspn)
+          repository: $(imageRepository)
+          command: 'push'
+          tags: |
+            $(tag)
+            latest
+    - task: PublishPipelineArtifact@1
+      inputs:
+          targetPath: '$(Pipeline.Workspace)/s/manifests'
+          artifact: 'manifests'
+          publishLocation: 'pipeline'
+- stage: DEV
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+  displayName: DEV - Deploy API to AKS 
+  dependsOn: Build
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy DEV
+    environment: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'manifests'
+              targetPath: '$(Pipeline.Workspace)/manifests'
+          - task: replacetokens@3
+            displayName: Replace Build tag & environment values
+            inputs:
+              rootDirectory: '$(Pipeline.Workspace)/manifests/'
+              targetFiles: '*.yml'
+              encoding: 'utf-8'
+              writeBOM: true
+              actionOnMissing: 'warn'
+              keepToken: false
+              tokenPrefix: '#{'
+              tokenSuffix: '}#'
+              useLegacyPattern: false
+              enableTransforms: false
+              enableTelemetry: false          
+          - task: KubernetesManifest@1
+            inputs:
+                action: 'createSecret'
+                connectionType: 'azureResourceManager'
+                azureSubscriptionConnection: 'terrafromspn'
+                azureResourceGroup: 'azure-loves-terraform-2023'
+                kubernetesCluster: 'mumuaks'
+                secretType: 'dockerRegistry'
+                secretName: $(imagePullSecret)
+                dockerRegistryEndpoint: 'acr-aks-001'
+          - task: KubernetesManifest@0
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: 'ingress'
+              manifests: |
+                $(hostnamesManifest)
+                $(ingressManifest)
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(hostnameImageRepo):$(tag)
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Swaggers
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'swagger-dev'
+              publishLocation: 'Container'

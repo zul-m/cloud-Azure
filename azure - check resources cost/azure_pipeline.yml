@@ -1,0 +1,84 @@
+schedules:
+- cron: "0 18 * * *"
+  displayName: Daily at 6:00 PM
+  branches:
+    include:
+    - master
+  always: true
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+pool:
+    vmImage: 'windows-latest'
+steps:
+    - task: AzureCLI@2
+      displayName: 'Generate Report'
+      inputs:
+        azureSubscription: 'terraformspn'
+        scriptType: 'ps'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+               try {
+                    dotnet tool install --global azure-cost-cli
+                    azure-cost accumulatedCost -s $(subscriptionid)
+                    $path ="$(Build.ArtifactStagingDirectory)\result.json"
+                    azure-cost accumulatedCost -s $(subscriptionid) -o json > $path
+                                        }
+                    catch {
+                        # If an error occurs, output the error message
+                        Write-Output "Error: $($_.Exception.Message)"
+                    }
+    - task: AzurePowerShell@5
+      displayName: 'Rename Report'
+      inputs:
+        azureSubscription: 'terraformspn'
+        ScriptType: 'InlineScript'
+        Inline: |
+          $date = Get-Date -Format 'yyyyMMdd'
+                  $filename = "result_$($date).json"
+                  $filenamehtml = "result.html"
+                  Write-Output "Setting file name to $filename"
+                  Rename-Item -Path "$(Build.ArtifactStagingDirectory)\result.json" -NewName $filename
+                  Write-Output "##vso[task.setvariable variable=ResultFileName]$filename"
+                  Write-Output "##vso[task.setvariable variable=ResultFileNamehtml]$filenamehtml"
+                  Write-Output "Renamed file to '$newFileName'"
+                  # Load the JSON file
+                  $json = Get-Content -Raw -Path "$(Build.ArtifactStagingDirectory)\$filename" | ConvertFrom-Json
+                  # Start building the HTML table
+                  $table = "<table style='border-collapse: collapse; width: 100%;'><thead style='background-color: #f2f2f2;'><tr><th style='padding: 8px; text-align: left;'>Date</th><th style='padding: 8px; text-align: left;'>Cost</th><th style='padding: 8px; text-align: left;'>Currency</th></tr></thead><tbody>"
+                  # Add rows to the table for the "cost" data
+                  foreach ($cost in $json.cost) {
+                      $table += "<tr style='border-bottom: 1px solid #ddd;'><td style='padding: 8px;'>$($cost.Date)</td><td style='padding: 8px;'>$($cost.Cost)</td><td style='padding: 8px;'>$($cost.Currency)</td></tr>"
+                  }
+                  # End the table
+                  $table += "</tbody></table>"
+                  # Output the table
+                  $table | Out-File -FilePath "$(Build.ArtifactStagingDirectory)\$filenamehtml"
+        azurePowerShellVersion: 'LatestVersion'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'result'
+        publishLocation: 'Container'
+        TargetPath: '$(Build.ArtifactStagingDirectory)/$(ResultFileName)'
+      displayName: 'Publish result artifact'
+    - task: AzureFileCopy@3
+      displayName: 'copy json file'
+      inputs:
+        SourcePath: '$(Build.ArtifactStagingDirectory)/$(ResultFileName)'
+        azureSubscription: 'terrafromspn'
+        Destination: 'AzureBlob'
+        storage: 'azurecostdemo'
+        ContainerName: 'costs'
+        sasTokenTimeOutInMinutes: '640'
+    - task: AzureFileCopy@3
+      displayName: 'copy html file'
+      inputs:
+        SourcePath: '$(Build.ArtifactStagingDirectory)/$(ResultFileNamehtml)'
+        azureSubscription: 'terraformspn'
+        Destination: 'AzureBlob'
+        storage: 'azurecostdemo'
+        ContainerName: 'costs'
+        sasTokenTimeOutInMinutes: '640'
